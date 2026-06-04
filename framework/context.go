@@ -21,3 +21,8 @@ func (c *ActorContext) Tell(target ActorRef, msg Message) {
 func (c *ActorContext) Spawn(name string, props Props) ActorRef {
 	return c.cell.system.spawnCell(name, props).ref
 }
+
+func (c *ActorContext) Become(behavior Behavior) {
+	c.cell.pendingBehavior = behavior
+	c.cell.hasPendingBehavior = true
+}

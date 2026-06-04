@@ -97,7 +97,11 @@ type actorCell struct {
 	props   Props
 	mailbox *Mailbox
 
-	actor Actor
+	actor    Actor
+	behavior Behavior
+
+	pendingBehavior    Behavior
+	hasPendingBehavior bool
 
 	stopOnce sync.Once
 	done     chan struct{}
@@ -125,6 +129,7 @@ func (c *actorCell) deliver(env envelope) {
 func (c *actorCell) run() {
 	defer close(c.done)
 	c.actor = c.props.Factory()
+	c.behavior = c.actor.Receive
 	c.runPreStart()
 
 	for {
@@ -141,7 +146,12 @@ func (c *actorCell) run() {
 
 func (c *actorCell) dispatchOne(env envelope) {
 	ctx := &ActorContext{cell: c, sender: env.sender}
-	c.actor.Receive(ctx, env.msg)
+	c.behavior(ctx, env.msg)
+	if c.hasPendingBehavior {
+		c.behavior = c.pendingBehavior
+		c.pendingBehavior = nil
+		c.hasPendingBehavior = false
+	}
 }
 
 func (c *actorCell) runPreStart() {
