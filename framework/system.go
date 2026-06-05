@@ -13,7 +13,9 @@ type ActorSystem struct {
 	logger *slog.Logger
 
 	mu     sync.Mutex
-	actors map[string]*actorCell // ime -> cell, za lokalno pronalaženje
+	actors map[string]*actorCell
+
+	guardian SupervisorStrategy
 
 	closed atomic.Bool
 }
@@ -24,11 +26,16 @@ func WithLogger(l *slog.Logger) Option {
 	return func(s *ActorSystem) { s.logger = l }
 }
 
+func WithGuardianStrategy(st SupervisorStrategy) Option {
+	return func(s *ActorSystem) { s.guardian = st }
+}
+
 func NewActorSystem(name string, opts ...Option) *ActorSystem {
 	s := &ActorSystem{
-		name:   name,
-		logger: slog.Default(),
-		actors: make(map[string]*actorCell),
+		name:     name,
+		logger:   slog.Default(),
+		actors:   make(map[string]*actorCell),
+		guardian: DefaultStrategy(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -44,7 +51,7 @@ func (s *ActorSystem) Spawn(name string, props Props) (ActorRef, error) {
 	if props.Factory == nil {
 		return nil, fmt.Errorf("framework: Props.Factory je obavezan")
 	}
-	return s.spawnCell(name, props).ref, nil
+	return s.spawnCell(name, props, nil).ref, nil
 }
 
 func (s *ActorSystem) MustSpawn(name string, props Props) ActorRef {
@@ -73,8 +80,8 @@ func (s *ActorSystem) Shutdown(_ context.Context) {
 	}
 }
 
-func (s *ActorSystem) spawnCell(name string, props Props) *actorCell {
-	cell := newActorCell(s, name, props)
+func (s *ActorSystem) spawnCell(name string, props Props, parent *actorCell) *actorCell {
+	cell := newActorCell(s, name, props, parent)
 	s.mu.Lock()
 	s.actors[name] = cell
 	s.mu.Unlock()
@@ -96,6 +103,7 @@ type actorCell struct {
 	ref     *localRef
 	props   Props
 	mailbox *Mailbox
+	parent  *actorCell
 
 	actor    Actor
 	behavior Behavior
@@ -107,12 +115,13 @@ type actorCell struct {
 	done     chan struct{}
 }
 
-func newActorCell(sys *ActorSystem, name string, props Props) *actorCell {
+func newActorCell(sys *ActorSystem, name string, props Props, parent *actorCell) *actorCell {
 	cell := &actorCell{
 		system:  sys,
 		name:    name,
 		props:   props,
 		mailbox: newMailbox(props.MailboxCapacity),
+		parent:  parent,
 		done:    make(chan struct{}),
 	}
 	cell.ref = &localRef{address: NewLocalAddress(name), cell: cell}
@@ -128,23 +137,42 @@ func (c *actorCell) deliver(env envelope) {
 
 func (c *actorCell) run() {
 	defer close(c.done)
-	c.actor = c.props.Factory()
-	c.behavior = c.actor.Receive
-	c.runPreStart()
+	c.initActor()
 
 	for {
 		env, ok := c.mailbox.recv()
 		if !ok {
 			break
 		}
-		c.dispatchOne(env)
+		if !c.dispatchOne(env) {
+			break
+		}
 	}
 
 	c.runPostStop()
 	c.system.unregisterCell(c)
 }
 
-func (c *actorCell) dispatchOne(env envelope) {
+func (c *actorCell) initActor() {
+	c.actor = c.props.Factory()
+	c.behavior = c.actor.Receive
+	c.pendingBehavior = nil
+	c.hasPendingBehavior = false
+	c.runPreStart()
+}
+
+func (c *actorCell) dispatchOne(env envelope) (alive bool) {
+	if esc, ok := env.msg.(escalation); ok {
+		return c.handlePanic(esc.reason)
+	}
+
+	alive = true
+	defer func() {
+		if r := recover(); r != nil {
+			alive = c.handlePanic(r)
+		}
+	}()
+
 	ctx := &ActorContext{cell: c, sender: env.sender}
 	c.behavior(ctx, env.msg)
 	if c.hasPendingBehavior {
@@ -152,6 +180,45 @@ func (c *actorCell) dispatchOne(env envelope) {
 		c.pendingBehavior = nil
 		c.hasPendingBehavior = false
 	}
+	return true
+}
+
+func (c *actorCell) handlePanic(reason any) bool {
+	d := c.supervisor().Decide(SupervisionAlert{Child: c.ref, Reason: reason})
+	c.system.logger.Error("actor panic",
+		"actor", c.name, "reason", fmt.Sprintf("%v", reason), "directive", d.String())
+
+	switch d {
+	case Restart:
+		c.initActor()
+		return true
+	case Escalate:
+		c.escalate(reason)
+		return false
+	default: // Stop
+		c.stop()
+		return false
+	}
+}
+
+func (c *actorCell) supervisor() SupervisorStrategy {
+	if c.parent != nil {
+		if st := c.parent.props.Strategy; st != nil {
+			return st
+		}
+		return DefaultStrategy()
+	}
+	return c.system.guardian
+}
+
+
+func (c *actorCell) escalate(reason any) {
+	c.stop()
+	if c.parent != nil {
+		c.parent.deliver(envelope{msg: escalation{child: c.ref, reason: reason}})
+		return
+	}
+	c.system.logger.Error("escalation reached top level; actor stopped", "actor", c.name)
 }
 
 func (c *actorCell) runPreStart() {

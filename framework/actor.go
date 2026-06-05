@@ -24,4 +24,6 @@ type Props struct {
 	Factory func() Actor
 
 	MailboxCapacity int
+
+	Strategy SupervisorStrategy
 }
