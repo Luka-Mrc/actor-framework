@@ -17,6 +17,8 @@ type ActorSystem struct {
 
 	guardian SupervisorStrategy
 
+	globalMiddleware []Middleware
+
 	closed atomic.Bool
 }
 
@@ -28,6 +30,10 @@ func WithLogger(l *slog.Logger) Option {
 
 func WithGuardianStrategy(st SupervisorStrategy) Option {
 	return func(s *ActorSystem) { s.guardian = st }
+}
+
+func WithGlobalMiddleware(mws ...Middleware) Option {
+	return func(s *ActorSystem) { s.globalMiddleware = append(s.globalMiddleware, mws...) }
 }
 
 func NewActorSystem(name string, opts ...Option) *ActorSystem {
@@ -107,6 +113,7 @@ type actorCell struct {
 
 	actor    Actor
 	behavior Behavior
+	handler  Handler
 
 	pendingBehavior    Behavior
 	hasPendingBehavior bool
@@ -158,7 +165,15 @@ func (c *actorCell) initActor() {
 	c.behavior = c.actor.Receive
 	c.pendingBehavior = nil
 	c.hasPendingBehavior = false
+	c.rebuildHandler()
 	c.runPreStart()
+}
+
+func (c *actorCell) rebuildHandler() {
+	mws := make([]Middleware, 0, len(c.system.globalMiddleware)+len(c.props.Middleware))
+	mws = append(mws, c.system.globalMiddleware...)
+	mws = append(mws, c.props.Middleware...)
+	c.handler = Chain(Handler(c.behavior), mws...)
 }
 
 func (c *actorCell) dispatchOne(env envelope) (alive bool) {
@@ -174,11 +189,12 @@ func (c *actorCell) dispatchOne(env envelope) (alive bool) {
 	}()
 
 	ctx := &ActorContext{cell: c, sender: env.sender}
-	c.behavior(ctx, env.msg)
+	c.handler(ctx, env.msg)
 	if c.hasPendingBehavior {
 		c.behavior = c.pendingBehavior
 		c.pendingBehavior = nil
 		c.hasPendingBehavior = false
+		c.rebuildHandler()
 	}
 	return true
 }
@@ -210,7 +226,6 @@ func (c *actorCell) supervisor() SupervisorStrategy {
 	}
 	return c.system.guardian
 }
-
 
 func (c *actorCell) escalate(reason any) {
 	c.stop()

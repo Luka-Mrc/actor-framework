@@ -26,4 +26,6 @@ type Props struct {
 	MailboxCapacity int
 
 	Strategy SupervisorStrategy
+
+	Middleware []Middleware
 }
