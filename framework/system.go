@@ -19,7 +19,13 @@ type ActorSystem struct {
 
 	globalMiddleware []Middleware
 
+	remote RemoteDispatcher
+
 	closed atomic.Bool
+}
+
+type RemoteDispatcher interface {
+	Dispatch(targetAddress string, msg Message, sender ActorRef) error
 }
 
 type Option func(*ActorSystem)
@@ -34,6 +40,10 @@ func WithGuardianStrategy(st SupervisorStrategy) Option {
 
 func WithGlobalMiddleware(mws ...Middleware) Option {
 	return func(s *ActorSystem) { s.globalMiddleware = append(s.globalMiddleware, mws...) }
+}
+
+func WithRemoteDispatcher(d RemoteDispatcher) Option {
+	return func(s *ActorSystem) { s.remote = d }
 }
 
 func NewActorSystem(name string, opts ...Option) *ActorSystem {
@@ -52,6 +62,31 @@ func NewActorSystem(name string, opts ...Option) *ActorSystem {
 func (s *ActorSystem) Name() string { return s.name }
 
 func (s *ActorSystem) Logger() *slog.Logger { return s.logger }
+
+func (s *ActorSystem) SetRemoteDispatcher(d RemoteDispatcher) { s.remote = d }
+
+func (s *ActorSystem) Resolve(address string) ActorRef {
+	if authority, name, ok := parseAddress(address); ok && authority == "local" {
+		s.mu.Lock()
+		cell, exists := s.actors[name]
+		s.mu.Unlock()
+		if exists {
+			return cell.ref
+		}
+	}
+	return &remoteRef{system: s, address: address}
+}
+
+func (s *ActorSystem) DeliverLocal(name string, msg Message, sender ActorRef) error {
+	s.mu.Lock()
+	cell, ok := s.actors[name]
+	s.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("framework: nema lokalnog aktora %q", name)
+	}
+	cell.deliver(envelope{msg: msg, sender: sender})
+	return nil
+}
 
 func (s *ActorSystem) Spawn(name string, props Props) (ActorRef, error) {
 	if props.Factory == nil {
