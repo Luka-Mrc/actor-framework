@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package remote;
+
+option go_package = "github.com/lukam/actor-framework/framework/remote/proto;remotepb";
+
+message Envelope {
+  string target_actor = 1;
+  string type_name = 2;
+  bytes payload = 3;
+  string sender = 4;
+}
+
+message DeliverAck {}
+
+service ActorTransport {
+  rpc Deliver(Envelope) returns (DeliverAck);
+}
