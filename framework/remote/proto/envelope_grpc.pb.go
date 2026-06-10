@@ -25,8 +25,6 @@ const (
 // ActorTransportClient is the client API for ActorTransport service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-//
-// ActorTransport je servis za isporuku poruka između sistema.
 type ActorTransportClient interface {
 	Deliver(ctx context.Context, in *Envelope, opts ...grpc.CallOption) (*DeliverAck, error)
 }
@@ -52,8 +50,6 @@ func (c *actorTransportClient) Deliver(ctx context.Context, in *Envelope, opts .
 // ActorTransportServer is the server API for ActorTransport service.
 // All implementations must embed UnimplementedActorTransportServer
 // for forward compatibility.
-//
-// ActorTransport je servis za isporuku poruka između sistema.
 type ActorTransportServer interface {
 	Deliver(context.Context, *Envelope) (*DeliverAck, error)
 	mustEmbedUnimplementedActorTransportServer()

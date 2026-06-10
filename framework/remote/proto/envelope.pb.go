@@ -21,13 +21,12 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Envelope prenosi jednu poruku ka udaljenom aktoru preko mreže.
 type Envelope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TargetActor   string                 `protobuf:"bytes,1,opt,name=target_actor,json=targetActor,proto3" json:"target_actor,omitempty"` // ime ciljnog aktora na udaljenom sistemu
-	TypeName      string                 `protobuf:"bytes,2,opt,name=type_name,json=typeName,proto3" json:"type_name,omitempty"`          // registrovano proto ime tipa poruke
-	Payload       []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`                            // serijalizovana poruka (proto.Marshal)
-	Sender        string                 `protobuf:"bytes,4,opt,name=sender,proto3" json:"sender,omitempty"`                              // puna adresa pošiljaoca radi odgovora (opciono)
+	TargetActor   string                 `protobuf:"bytes,1,opt,name=target_actor,json=targetActor,proto3" json:"target_actor,omitempty"`
+	TypeName      string                 `protobuf:"bytes,2,opt,name=type_name,json=typeName,proto3" json:"type_name,omitempty"`
+	Payload       []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	Sender        string                 `protobuf:"bytes,4,opt,name=sender,proto3" json:"sender,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,7 +89,6 @@ func (x *Envelope) GetSender() string {
 	return ""
 }
 
-// DeliverAck je prazna potvrda prijema.
 type DeliverAck struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
