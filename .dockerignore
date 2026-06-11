@@ -1,0 +1,10 @@
+tools/
+bin/
+*.exe
+*.log
+
+federated/data/*.txt
+
+.git/
+dokumentacija/
+examples/

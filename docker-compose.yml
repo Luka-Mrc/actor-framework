@@ -1,0 +1,80 @@
+
+services:
+  coordinator:
+    build: .
+    image: fl-actor:latest
+    command: ["/app/coordinator"]
+    networks: [flnet]
+    volumes:
+      - ./federated/data:/data:ro
+    environment:
+      LISTEN: ":9000"
+      ADVERTISED: "coordinator:9000"
+      EXPECTED_TRAINERS: "3"
+      TOTAL_ROUNDS: "5"
+      SEED: "42"
+      DATA_DIR: "/data"
+
+  trainer-1:
+    image: fl-actor:latest
+    command: ["/app/trainer"]
+    depends_on: [coordinator]
+    networks: [flnet]
+    volumes:
+      - ./federated/data:/data:ro
+    environment:
+      LISTEN: ":9000"
+      ADVERTISED: "trainer-1:9000"
+      TRAINER_ID: "trainer-1"
+      COORDINATOR_ADDR: "actor://coordinator:9000/coordinator"
+      NUM_TRAINERS: "3"
+      SHARD: "0"
+      DISTRIBUTION: "${DISTRIBUTION:-iid}"
+      SEED: "42"
+      EPOCHS: "1"
+      LR: "0.01"
+      DATA_DIR: "/data"
+
+  trainer-2:
+    image: fl-actor:latest
+    command: ["/app/trainer"]
+    depends_on: [coordinator]
+    networks: [flnet]
+    volumes:
+      - ./federated/data:/data:ro
+    environment:
+      LISTEN: ":9000"
+      ADVERTISED: "trainer-2:9000"
+      TRAINER_ID: "trainer-2"
+      COORDINATOR_ADDR: "actor://coordinator:9000/coordinator"
+      NUM_TRAINERS: "3"
+      SHARD: "1"
+      DISTRIBUTION: "${DISTRIBUTION:-iid}"
+      SEED: "42"
+      EPOCHS: "1"
+      LR: "0.01"
+      DATA_DIR: "/data"
+
+  trainer-3:
+    image: fl-actor:latest
+    command: ["/app/trainer"]
+    depends_on: [coordinator]
+    networks: [flnet]
+    volumes:
+      - ./federated/data:/data:ro
+    environment:
+      LISTEN: ":9000"
+      ADVERTISED: "trainer-3:9000"
+      TRAINER_ID: "trainer-3"
+      COORDINATOR_ADDR: "actor://coordinator:9000/coordinator"
+      NUM_TRAINERS: "3"
+      SHARD: "2"
+      DISTRIBUTION: "${DISTRIBUTION:-iid}"
+      SEED: "42"
+      EPOCHS: "1"
+      LR: "0.01"
+      DATA_DIR: "/data"
+
+networks:
+  flnet:
+    driver: bridge
