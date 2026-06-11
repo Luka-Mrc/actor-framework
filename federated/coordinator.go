@@ -96,7 +96,7 @@ func (c *Coordinator) Receive(ctx *framework.ActorContext, msg framework.Message
 
 func (c *Coordinator) startRound(ctx *framework.ActorContext) {
 	blob := encodeWeights(c.global)
-	aggAddr := c.agg.Address()
+	aggAddr := ctx.System().Advertise(c.agg.Address())
 	for _, id := range c.order {
 		ctx.Tell(c.trainers[id], &pb.StartRound{
 			RoundNumber:       int32(c.round),

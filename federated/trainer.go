@@ -1,6 +1,9 @@
 package federated
 
 import (
+	"sync/atomic"
+	"time"
+
 	"github.com/lukam/actor-framework/federated/data"
 	"github.com/lukam/actor-framework/federated/model"
 	pb "github.com/lukam/actor-framework/federated/protogen"
@@ -13,6 +16,8 @@ type Trainer struct {
 	local     *data.Dataset
 	epochs    int
 	lr        float64
+
+	registered atomic.Bool
 
 	lastRound   int
 	lastWeights *model.Weights
@@ -27,11 +32,19 @@ func NewTrainerProps(id, coordAddr string, local *data.Dataset, epochs int, lr f
 
 func (t *Trainer) PreStart(ctx *framework.ActorContext) {
 	coord := ctx.System().Resolve(t.coordAddr)
-	ctx.Tell(coord, &pb.RegisterTrainer{
+	self := ctx.Self()
+	reg := &pb.RegisterTrainer{
 		TrainerId:   t.id,
 		DatasetSize: int32(t.local.Len()),
-		Address:     ctx.Self().Address(),
-	})
+		Address:     ctx.System().Advertise(self.Address()),
+	}
+
+	go func() {
+		for i := 0; i < 60 && !t.registered.Load(); i++ {
+			coord.Tell(reg, self)
+			time.Sleep(time.Second)
+		}
+	}()
 }
 
 func (t *Trainer) Receive(ctx *framework.ActorContext, msg framework.Message) {
@@ -39,6 +52,8 @@ func (t *Trainer) Receive(ctx *framework.ActorContext, msg framework.Message) {
 	if !ok {
 		return
 	}
+	t.registered.Store(true)
+
 	round := int(m.GetRoundNumber())
 	agg := ctx.System().Resolve(m.GetAggregatorAddress())
 
