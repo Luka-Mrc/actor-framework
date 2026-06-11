@@ -21,6 +21,8 @@ type ActorSystem struct {
 
 	remote RemoteDispatcher
 
+	advertisedHost string
+
 	closed atomic.Bool
 }
 
@@ -46,6 +48,10 @@ func WithRemoteDispatcher(d RemoteDispatcher) Option {
 	return func(s *ActorSystem) { s.remote = d }
 }
 
+func WithAdvertisedHost(host string) Option {
+	return func(s *ActorSystem) { s.advertisedHost = host }
+}
+
 func NewActorSystem(name string, opts ...Option) *ActorSystem {
 	s := &ActorSystem{
 		name:     name,
@@ -64,6 +70,16 @@ func (s *ActorSystem) Name() string { return s.name }
 func (s *ActorSystem) Logger() *slog.Logger { return s.logger }
 
 func (s *ActorSystem) SetRemoteDispatcher(d RemoteDispatcher) { s.remote = d }
+
+func (s *ActorSystem) Advertise(localAddress string) string {
+	if s.advertisedHost == "" {
+		return localAddress
+	}
+	if authority, name, ok := parseAddress(localAddress); ok && authority == "local" {
+		return NewRemoteAddress(s.advertisedHost, name)
+	}
+	return localAddress
+}
 
 func (s *ActorSystem) Resolve(address string) ActorRef {
 	if authority, name, ok := parseAddress(address); ok && authority == "local" {
