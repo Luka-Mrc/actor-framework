@@ -7,11 +7,12 @@
 package federatedpb
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -334,8 +335,8 @@ type EvaluationResult struct {
 	RoundNumber   int32                  `protobuf:"varint,1,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
 	Accuracy      float64                `protobuf:"fixed64,2,opt,name=accuracy,proto3" json:"accuracy,omitempty"`
 	MacroF1       float64                `protobuf:"fixed64,3,opt,name=macro_f1,json=macroF1,proto3" json:"macro_f1,omitempty"`
-	ClassF1       []float64              `protobuf:"fixed64,4,rep,packed,name=class_f1,json=classF1,proto3" json:"class_f1,omitempty"` // F1 po klasi
-	Confusion     []int32                `protobuf:"varint,5,rep,packed,name=confusion,proto3" json:"confusion,omitempty"`             // konfuziona matrica, row-major
+	ClassF1       []float64              `protobuf:"fixed64,4,rep,packed,name=class_f1,json=classF1,proto3" json:"class_f1,omitempty"`
+	Confusion     []int32                `protobuf:"varint,5,rep,packed,name=confusion,proto3" json:"confusion,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -533,6 +534,74 @@ func (x *LogEntry) GetMessage() string {
 	return ""
 }
 
+type PeerSync struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	RoundNumber   int32                  `protobuf:"varint,2,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
+	Weights       []byte                 `protobuf:"bytes,3,opt,name=weights,proto3" json:"weights,omitempty"`
+	DatasetSize   int32                  `protobuf:"varint,4,opt,name=dataset_size,json=datasetSize,proto3" json:"dataset_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PeerSync) Reset() {
+	*x = PeerSync{}
+	mi := &file_federated_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PeerSync) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PeerSync) ProtoMessage() {}
+
+func (x *PeerSync) ProtoReflect() protoreflect.Message {
+	mi := &file_federated_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PeerSync.ProtoReflect.Descriptor instead.
+func (*PeerSync) Descriptor() ([]byte, []int) {
+	return file_federated_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *PeerSync) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *PeerSync) GetRoundNumber() int32 {
+	if x != nil {
+		return x.RoundNumber
+	}
+	return 0
+}
+
+func (x *PeerSync) GetWeights() []byte {
+	if x != nil {
+		return x.Weights
+	}
+	return nil
+}
+
+func (x *PeerSync) GetDatasetSize() int32 {
+	if x != nil {
+		return x.DatasetSize
+	}
+	return 0
+}
+
 var File_federated_proto protoreflect.FileDescriptor
 
 const file_federated_proto_rawDesc = "" +
@@ -578,7 +647,12 @@ const file_federated_proto_rawDesc = "" +
 	"\x11timestamp_unix_ms\x18\x01 \x01(\x03R\x0ftimestampUnixMs\x12!\n" +
 	"\fsource_actor\x18\x02 \x01(\tR\vsourceActor\x12\x14\n" +
 	"\x05level\x18\x03 \x01(\tR\x05level\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessageBAZ?github.com/lukam/actor-framework/federated/protogen;federatedpbb\x06proto3"
+	"\amessage\x18\x04 \x01(\tR\amessage\"\x83\x01\n" +
+	"\bPeerSync\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12!\n" +
+	"\fround_number\x18\x02 \x01(\x05R\vroundNumber\x12\x18\n" +
+	"\aweights\x18\x03 \x01(\fR\aweights\x12!\n" +
+	"\fdataset_size\x18\x04 \x01(\x05R\vdatasetSizeBAZ?github.com/lukam/actor-framework/federated/protogen;federatedpbb\x06proto3"
 
 var (
 	file_federated_proto_rawDescOnce sync.Once
@@ -592,7 +666,7 @@ func file_federated_proto_rawDescGZIP() []byte {
 	return file_federated_proto_rawDescData
 }
 
-var file_federated_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_federated_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_federated_proto_goTypes = []any{
 	(*RegisterTrainer)(nil),     // 0: federated.RegisterTrainer
 	(*StartRound)(nil),          // 1: federated.StartRound
@@ -602,6 +676,7 @@ var file_federated_proto_goTypes = []any{
 	(*EvaluationResult)(nil),    // 5: federated.EvaluationResult
 	(*TrainingComplete)(nil),    // 6: federated.TrainingComplete
 	(*LogEntry)(nil),            // 7: federated.LogEntry
+	(*PeerSync)(nil),            // 8: federated.PeerSync
 }
 var file_federated_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -622,7 +697,7 @@ func file_federated_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_federated_proto_rawDesc), len(file_federated_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

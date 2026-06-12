@@ -16,4 +16,5 @@ func RegisterMessages() {
 	remote.Register(&pb.EvaluationResult{})
 	remote.Register(&pb.TrainingComplete{})
 	remote.Register(&pb.LogEntry{})
+	remote.Register(&pb.PeerSync{})
 }
