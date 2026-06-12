@@ -1,0 +1,66 @@
+
+services:
+  peer-1:
+    build: .
+    image: fl-actor:latest
+    command: ["/app/peer"]
+    networks: [flnet]
+    volumes:
+      - ./federated/data:/data:ro
+    environment:
+      LISTEN: ":9000"
+      ADVERTISED: "peer-1:9000"
+      NODE_ID: "peer-1"
+      PEERS: "actor://peer-2:9000/peer-2,actor://peer-3:9000/peer-3"
+      NUM_PEERS: "3"
+      SHARD: "0"
+      DISTRIBUTION: "${DISTRIBUTION:-iid}"
+      SEED: "42"
+      EPOCHS: "1"
+      LR: "0.01"
+      TOTAL_ROUNDS: "5"
+      DATA_DIR: "/data"
+
+  peer-2:
+    image: fl-actor:latest
+    command: ["/app/peer"]
+    networks: [flnet]
+    volumes:
+      - ./federated/data:/data:ro
+    environment:
+      LISTEN: ":9000"
+      ADVERTISED: "peer-2:9000"
+      NODE_ID: "peer-2"
+      PEERS: "actor://peer-1:9000/peer-1,actor://peer-3:9000/peer-3"
+      NUM_PEERS: "3"
+      SHARD: "1"
+      DISTRIBUTION: "${DISTRIBUTION:-iid}"
+      SEED: "42"
+      EPOCHS: "1"
+      LR: "0.01"
+      TOTAL_ROUNDS: "5"
+      DATA_DIR: "/data"
+
+  peer-3:
+    image: fl-actor:latest
+    command: ["/app/peer"]
+    networks: [flnet]
+    volumes:
+      - ./federated/data:/data:ro
+    environment:
+      LISTEN: ":9000"
+      ADVERTISED: "peer-3:9000"
+      NODE_ID: "peer-3"
+      PEERS: "actor://peer-1:9000/peer-1,actor://peer-2:9000/peer-2"
+      NUM_PEERS: "3"
+      SHARD: "2"
+      DISTRIBUTION: "${DISTRIBUTION:-iid}"
+      SEED: "42"
+      EPOCHS: "1"
+      LR: "0.01"
+      TOTAL_ROUNDS: "5"
+      DATA_DIR: "/data"
+
+networks:
+  flnet:
+    driver: bridge
