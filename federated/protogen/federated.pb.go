@@ -540,6 +540,8 @@ type PeerSync struct {
 	RoundNumber   int32                  `protobuf:"varint,2,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
 	Weights       []byte                 `protobuf:"bytes,3,opt,name=weights,proto3" json:"weights,omitempty"`
 	DatasetSize   int32                  `protobuf:"varint,4,opt,name=dataset_size,json=datasetSize,proto3" json:"dataset_size,omitempty"`
+	RoundsCounter []byte                 `protobuf:"bytes,5,opt,name=rounds_counter,json=roundsCounter,proto3" json:"rounds_counter,omitempty"`
+	Participants  []byte                 `protobuf:"bytes,6,opt,name=participants,proto3" json:"participants,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -602,6 +604,20 @@ func (x *PeerSync) GetDatasetSize() int32 {
 	return 0
 }
 
+func (x *PeerSync) GetRoundsCounter() []byte {
+	if x != nil {
+		return x.RoundsCounter
+	}
+	return nil
+}
+
+func (x *PeerSync) GetParticipants() []byte {
+	if x != nil {
+		return x.Participants
+	}
+	return nil
+}
+
 var File_federated_proto protoreflect.FileDescriptor
 
 const file_federated_proto_rawDesc = "" +
@@ -647,12 +663,14 @@ const file_federated_proto_rawDesc = "" +
 	"\x11timestamp_unix_ms\x18\x01 \x01(\x03R\x0ftimestampUnixMs\x12!\n" +
 	"\fsource_actor\x18\x02 \x01(\tR\vsourceActor\x12\x14\n" +
 	"\x05level\x18\x03 \x01(\tR\x05level\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"\x83\x01\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\xce\x01\n" +
 	"\bPeerSync\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12!\n" +
 	"\fround_number\x18\x02 \x01(\x05R\vroundNumber\x12\x18\n" +
 	"\aweights\x18\x03 \x01(\fR\aweights\x12!\n" +
-	"\fdataset_size\x18\x04 \x01(\x05R\vdatasetSizeBAZ?github.com/lukam/actor-framework/federated/protogen;federatedpbb\x06proto3"
+	"\fdataset_size\x18\x04 \x01(\x05R\vdatasetSize\x12%\n" +
+	"\x0erounds_counter\x18\x05 \x01(\fR\rroundsCounter\x12\"\n" +
+	"\fparticipants\x18\x06 \x01(\fR\fparticipantsBAZ?github.com/lukam/actor-framework/federated/protogen;federatedpbb\x06proto3"
 
 var (
 	file_federated_proto_rawDescOnce sync.Once

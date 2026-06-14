@@ -62,4 +62,6 @@ message PeerSync {
   int32 round_number = 2;
   bytes weights = 3;
   int32 dataset_size = 4;
+  bytes rounds_counter = 5;
+  bytes participants = 6;
 }
