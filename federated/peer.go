@@ -4,6 +4,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/lukam/actor-framework/crdt"
 	"github.com/lukam/actor-framework/federated/data"
 	"github.com/lukam/actor-framework/federated/model"
 	pb "github.com/lukam/actor-framework/federated/protogen"
@@ -38,29 +39,35 @@ type PeerCoordinator struct {
 	buffer   map[int]map[string]peerUpdate
 	start    time.Time
 	finished bool
+
+	rounds       *crdt.GCounter
+	participants *crdt.ORSet
 }
 
 func NewPeerCoordinatorProps(id string, peerAddrs []string, local, test *data.Dataset, epochs int, lr float64, totalRounds int, initial *model.Weights, done chan float64) framework.Props {
 	return framework.Props{Factory: func() framework.Actor {
 		return &PeerCoordinator{
-			id:          id,
-			peerAddrs:   peerAddrs,
-			numPeers:    len(peerAddrs) + 1,
-			local:       local,
-			test:        test,
-			epochs:      epochs,
-			lr:          lr,
-			totalRounds: totalRounds,
-			done:        done,
-			global:      initial,
-			round:       1,
-			buffer:      make(map[int]map[string]peerUpdate),
+			id:           id,
+			peerAddrs:    peerAddrs,
+			numPeers:     len(peerAddrs) + 1,
+			local:        local,
+			test:         test,
+			epochs:       epochs,
+			lr:           lr,
+			totalRounds:  totalRounds,
+			done:         done,
+			global:       initial,
+			round:        1,
+			buffer:       make(map[int]map[string]peerUpdate),
+			rounds:       crdt.NewGCounter(),
+			participants: crdt.NewORSet(id),
 		}
 	}}
 }
 
 func (c *PeerCoordinator) PreStart(ctx *framework.ActorContext) {
 	c.start = time.Now()
+	c.participants.Add(c.id)
 	c.trainAndBroadcast(ctx)
 	c.advance(ctx)
 }
@@ -71,6 +78,7 @@ func (c *PeerCoordinator) Receive(ctx *framework.ActorContext, msg framework.Mes
 		if c.finished {
 			return
 		}
+		c.mergeCRDT(m)
 		r := int(m.GetRoundNumber())
 		if r < c.round {
 			return
@@ -125,6 +133,8 @@ func (c *PeerCoordinator) advance(ctx *framework.ActorContext) {
 }
 
 func (c *PeerCoordinator) trainAndBroadcast(ctx *framework.ActorContext) {
+	c.rounds.Increment(c.id, 1)
+
 	localW := cloneWeights(c.global)
 	for e := 0; e < c.epochs; e++ {
 		model.TrainEpoch(localW, c.local.X, c.local.Y, c.lr)
@@ -137,10 +147,12 @@ func (c *PeerCoordinator) trainAndBroadcast(ctx *framework.ActorContext) {
 
 func (c *PeerCoordinator) broadcast(ctx *framework.ActorContext, round int, w *model.Weights) {
 	msg := &pb.PeerSync{
-		NodeId:      c.id,
-		RoundNumber: int32(round),
-		Weights:     encodeWeights(w),
-		DatasetSize: int32(c.local.Len()),
+		NodeId:        c.id,
+		RoundNumber:   int32(round),
+		Weights:       encodeWeights(w),
+		DatasetSize:   int32(c.local.Len()),
+		RoundsCounter: c.rounds.Marshal(),
+		Participants:  c.participants.Marshal(),
 	}
 	for _, addr := range c.peerAddrs {
 		ctx.Tell(ctx.System().Resolve(addr), msg)
@@ -155,11 +167,22 @@ func (c *PeerCoordinator) scheduleRetry(ctx *framework.ActorContext, round, atte
 	}()
 }
 
+func (c *PeerCoordinator) mergeCRDT(m *pb.PeerSync) {
+	if oc, err := crdt.UnmarshalGCounter(m.GetRoundsCounter()); err == nil {
+		c.rounds.Merge(oc)
+	}
+	if op, err := crdt.UnmarshalORSet(m.GetParticipants()); err == nil {
+		c.participants.Merge(op)
+	}
+}
+
 func (c *PeerCoordinator) finish(ctx *framework.ActorContext, acc float64) {
 	c.finished = true
 	ctx.System().Logger().Info("peer training complete",
 		"node", c.id, "rounds", c.totalRounds,
-		"final_accuracy", acc, "duration_ms", time.Since(c.start).Milliseconds())
+		"final_accuracy", acc, "duration_ms", time.Since(c.start).Milliseconds(),
+		"crdt_total_rounds", c.rounds.Value(),
+		"crdt_participants", c.participants.Elements())
 	if c.done != nil {
 		c.done <- acc
 	}

@@ -3,6 +3,7 @@ package federated
 import (
 	"time"
 
+	"github.com/lukam/actor-framework/crdt"
 	"github.com/lukam/actor-framework/federated/data"
 	"github.com/lukam/actor-framework/federated/model"
 	pb "github.com/lukam/actor-framework/federated/protogen"
@@ -20,10 +21,11 @@ type Coordinator struct {
 	eval   framework.ActorRef
 	logger framework.ActorRef
 
-	trainers map[string]framework.ActorRef
-	order    []string
-	round    int
-	start    time.Time
+	trainers     map[string]framework.ActorRef
+	order        []string
+	participants *crdt.ORSet
+	round        int
+	start        time.Time
 }
 
 func NewCoordinatorProps(expectedTrainers, totalRounds int, initial *model.Weights, test *data.Dataset, done chan float64) framework.Props {
@@ -37,6 +39,7 @@ func NewCoordinatorProps(expectedTrainers, totalRounds int, initial *model.Weigh
 				testData:         test,
 				done:             done,
 				trainers:         make(map[string]framework.ActorRef),
+				participants:     crdt.NewORSet("coordinator"),
 				round:            0,
 			}
 		},
@@ -56,8 +59,10 @@ func (c *Coordinator) Receive(ctx *framework.ActorContext, msg framework.Message
 		if _, ok := c.trainers[m.GetTrainerId()]; !ok {
 			c.trainers[m.GetTrainerId()] = ctx.System().Resolve(m.GetAddress())
 			c.order = append(c.order, m.GetTrainerId())
+			c.participants.Add(m.GetTrainerId())
 		}
 		if len(c.trainers) == c.expectedTrainers && c.round == 0 {
+			ctx.System().Logger().Info("all trainers registered", "participants", c.participants.Elements())
 			c.round = 1
 			c.startRound(ctx)
 		}
