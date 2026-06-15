@@ -258,13 +258,21 @@ func (c *actorCell) handlePanic(reason any) bool {
 	switch d {
 	case Restart:
 		c.initActor()
+		c.notifyParent(reason)
 		return true
 	case Escalate:
 		c.escalate(reason)
 		return false
-	default: // Stop
+	default:
+		c.notifyParent(reason)
 		c.stop()
 		return false
+	}
+}
+
+func (c *actorCell) notifyParent(reason any) {
+	if c.parent != nil {
+		c.parent.deliver(envelope{msg: SupervisionAlert{Child: c.ref, Reason: reason}})
 	}
 }
 
