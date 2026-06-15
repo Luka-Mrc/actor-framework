@@ -28,12 +28,23 @@ func (e *Evaluator) Receive(ctx *framework.ActorContext, msg framework.Message) 
 	metrics := model.Evaluate(w, e.test.X, e.test.Y)
 
 	ctx.Tell(ctx.Parent(), &pb.EvaluationResult{
-		RoundNumber: m.GetRoundNumber(),
-		Accuracy:    metrics.Accuracy,
-		MacroF1:     metrics.MacroF1,
-		ClassF1:     metrics.F1,
-		Confusion:   flattenConfusion(metrics.Confusion),
+		RoundNumber:     m.GetRoundNumber(),
+		Accuracy:        metrics.Accuracy,
+		ClassMetrics:    classMetrics(metrics),
+		ConfusionMatrix: flattenConfusion(metrics.Confusion),
 	})
+}
+
+func classMetrics(m model.Metrics) map[string]*pb.F1Score {
+	out := make(map[string]*pb.F1Score, len(m.F1))
+	for c := range m.F1 {
+		out[data.Class(c).String()] = &pb.F1Score{
+			Precision: m.Precision[c],
+			Recall:    m.Recall[c],
+			F1:        m.F1[c],
+		}
+	}
+	return out
 }
 
 func flattenConfusion(conf [][]int) []int32 {

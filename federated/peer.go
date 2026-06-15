@@ -1,6 +1,7 @@
 package federated
 
 import (
+	"encoding/json"
 	"sort"
 	"time"
 
@@ -84,15 +85,15 @@ func (c *PeerCoordinator) Receive(ctx *framework.ActorContext, msg framework.Mes
 			return
 		}
 		c.ensureRound(r)
-		if _, dup := c.buffer[r][m.GetNodeId()]; dup {
+		if _, dup := c.buffer[r][m.GetPeerId()]; dup {
 			return
 		}
-		w, err := decodeWeights(m.GetWeights())
+		w, err := decodeWeights(m.GetLocalWeights())
 		if err != nil {
-			ctx.System().Logger().Error("peer: decode weights", "node", c.id, "from", m.GetNodeId(), "error", err.Error())
+			ctx.System().Logger().Error("peer: decode weights", "node", c.id, "from", m.GetPeerId(), "error", err.Error())
 			return
 		}
-		c.buffer[r][m.GetNodeId()] = peerUpdate{weights: w, size: int(m.GetDatasetSize())}
+		c.buffer[r][m.GetPeerId()] = peerUpdate{weights: w, size: int(m.GetDatasetSize())}
 		c.advance(ctx)
 
 	case retryTick:
@@ -147,12 +148,11 @@ func (c *PeerCoordinator) trainAndBroadcast(ctx *framework.ActorContext) {
 
 func (c *PeerCoordinator) broadcast(ctx *framework.ActorContext, round int, w *model.Weights) {
 	msg := &pb.PeerSync{
-		NodeId:        c.id,
-		RoundNumber:   int32(round),
-		Weights:       encodeWeights(w),
-		DatasetSize:   int32(c.local.Len()),
-		RoundsCounter: c.rounds.Marshal(),
-		Participants:  c.participants.Marshal(),
+		PeerId:       c.id,
+		RoundNumber:  int32(round),
+		LocalWeights: encodeWeights(w),
+		DatasetSize:  int32(c.local.Len()),
+		CrdtState:    c.marshalCRDT(),
 	}
 	for _, addr := range c.peerAddrs {
 		ctx.Tell(ctx.System().Resolve(addr), msg)
@@ -167,11 +167,31 @@ func (c *PeerCoordinator) scheduleRetry(ctx *framework.ActorContext, round, atte
 	}()
 }
 
+type crdtEnvelope struct {
+	Rounds       json.RawMessage `json:"rounds"`
+	Participants json.RawMessage `json:"participants"`
+}
+
+func (c *PeerCoordinator) marshalCRDT() []byte {
+	b, _ := json.Marshal(crdtEnvelope{
+		Rounds:       c.rounds.Marshal(),
+		Participants: c.participants.Marshal(),
+	})
+	return b
+}
+
 func (c *PeerCoordinator) mergeCRDT(m *pb.PeerSync) {
-	if oc, err := crdt.UnmarshalGCounter(m.GetRoundsCounter()); err == nil {
+	if len(m.GetCrdtState()) == 0 {
+		return
+	}
+	var env crdtEnvelope
+	if err := json.Unmarshal(m.GetCrdtState(), &env); err != nil {
+		return
+	}
+	if oc, err := crdt.UnmarshalGCounter(env.Rounds); err == nil {
 		c.rounds.Merge(oc)
 	}
-	if op, err := crdt.UnmarshalORSet(m.GetParticipants()); err == nil {
+	if op, err := crdt.UnmarshalORSet(env.Participants); err == nil {
 		c.participants.Merge(op)
 	}
 }

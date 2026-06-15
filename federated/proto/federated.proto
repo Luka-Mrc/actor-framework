@@ -36,18 +36,23 @@ message EvaluateModel {
   string test_data_path = 3;
 }
 
+message F1Score {
+  double precision = 1;
+  double recall = 2;
+  double f1 = 3;
+}
+
 message EvaluationResult {
   int32 round_number = 1;
   double accuracy = 2;
-  double macro_f1 = 3;
-  repeated double class_f1 = 4;
-  repeated int32 confusion = 5;
+  map<string, F1Score> class_metrics = 3;
+  repeated int32 confusion_matrix = 4;
 }
 
 message TrainingComplete {
   int32 total_rounds = 1;
   double final_accuracy = 2;
-  int64 duration_ms = 3;
+  int64 duration = 3;
 }
 
 message LogEntry {
@@ -58,10 +63,9 @@ message LogEntry {
 }
 
 message PeerSync {
-  string node_id = 1;
+  string peer_id = 1;
   int32 round_number = 2;
-  bytes weights = 3;
+  bytes local_weights = 3;
   int32 dataset_size = 4;
-  bytes rounds_counter = 5;
-  bytes participants = 6;
+  bytes crdt_state = 5;
 }

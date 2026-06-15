@@ -7,12 +7,11 @@
 package federatedpb
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -330,20 +329,79 @@ func (x *EvaluateModel) GetTestDataPath() string {
 	return ""
 }
 
-type EvaluationResult struct {
+type F1Score struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoundNumber   int32                  `protobuf:"varint,1,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
-	Accuracy      float64                `protobuf:"fixed64,2,opt,name=accuracy,proto3" json:"accuracy,omitempty"`
-	MacroF1       float64                `protobuf:"fixed64,3,opt,name=macro_f1,json=macroF1,proto3" json:"macro_f1,omitempty"`
-	ClassF1       []float64              `protobuf:"fixed64,4,rep,packed,name=class_f1,json=classF1,proto3" json:"class_f1,omitempty"`
-	Confusion     []int32                `protobuf:"varint,5,rep,packed,name=confusion,proto3" json:"confusion,omitempty"`
+	Precision     float64                `protobuf:"fixed64,1,opt,name=precision,proto3" json:"precision,omitempty"`
+	Recall        float64                `protobuf:"fixed64,2,opt,name=recall,proto3" json:"recall,omitempty"`
+	F1            float64                `protobuf:"fixed64,3,opt,name=f1,proto3" json:"f1,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *F1Score) Reset() {
+	*x = F1Score{}
+	mi := &file_federated_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *F1Score) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*F1Score) ProtoMessage() {}
+
+func (x *F1Score) ProtoReflect() protoreflect.Message {
+	mi := &file_federated_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use F1Score.ProtoReflect.Descriptor instead.
+func (*F1Score) Descriptor() ([]byte, []int) {
+	return file_federated_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *F1Score) GetPrecision() float64 {
+	if x != nil {
+		return x.Precision
+	}
+	return 0
+}
+
+func (x *F1Score) GetRecall() float64 {
+	if x != nil {
+		return x.Recall
+	}
+	return 0
+}
+
+func (x *F1Score) GetF1() float64 {
+	if x != nil {
+		return x.F1
+	}
+	return 0
+}
+
+type EvaluationResult struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	RoundNumber     int32                  `protobuf:"varint,1,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
+	Accuracy        float64                `protobuf:"fixed64,2,opt,name=accuracy,proto3" json:"accuracy,omitempty"`
+	ClassMetrics    map[string]*F1Score    `protobuf:"bytes,3,rep,name=class_metrics,json=classMetrics,proto3" json:"class_metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ConfusionMatrix []int32                `protobuf:"varint,4,rep,packed,name=confusion_matrix,json=confusionMatrix,proto3" json:"confusion_matrix,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
 func (x *EvaluationResult) Reset() {
 	*x = EvaluationResult{}
-	mi := &file_federated_proto_msgTypes[5]
+	mi := &file_federated_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -355,7 +413,7 @@ func (x *EvaluationResult) String() string {
 func (*EvaluationResult) ProtoMessage() {}
 
 func (x *EvaluationResult) ProtoReflect() protoreflect.Message {
-	mi := &file_federated_proto_msgTypes[5]
+	mi := &file_federated_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -368,7 +426,7 @@ func (x *EvaluationResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluationResult.ProtoReflect.Descriptor instead.
 func (*EvaluationResult) Descriptor() ([]byte, []int) {
-	return file_federated_proto_rawDescGZIP(), []int{5}
+	return file_federated_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *EvaluationResult) GetRoundNumber() int32 {
@@ -385,23 +443,16 @@ func (x *EvaluationResult) GetAccuracy() float64 {
 	return 0
 }
 
-func (x *EvaluationResult) GetMacroF1() float64 {
+func (x *EvaluationResult) GetClassMetrics() map[string]*F1Score {
 	if x != nil {
-		return x.MacroF1
-	}
-	return 0
-}
-
-func (x *EvaluationResult) GetClassF1() []float64 {
-	if x != nil {
-		return x.ClassF1
+		return x.ClassMetrics
 	}
 	return nil
 }
 
-func (x *EvaluationResult) GetConfusion() []int32 {
+func (x *EvaluationResult) GetConfusionMatrix() []int32 {
 	if x != nil {
-		return x.Confusion
+		return x.ConfusionMatrix
 	}
 	return nil
 }
@@ -410,14 +461,14 @@ type TrainingComplete struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TotalRounds   int32                  `protobuf:"varint,1,opt,name=total_rounds,json=totalRounds,proto3" json:"total_rounds,omitempty"`
 	FinalAccuracy float64                `protobuf:"fixed64,2,opt,name=final_accuracy,json=finalAccuracy,proto3" json:"final_accuracy,omitempty"`
-	DurationMs    int64                  `protobuf:"varint,3,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Duration      int64                  `protobuf:"varint,3,opt,name=duration,proto3" json:"duration,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TrainingComplete) Reset() {
 	*x = TrainingComplete{}
-	mi := &file_federated_proto_msgTypes[6]
+	mi := &file_federated_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -429,7 +480,7 @@ func (x *TrainingComplete) String() string {
 func (*TrainingComplete) ProtoMessage() {}
 
 func (x *TrainingComplete) ProtoReflect() protoreflect.Message {
-	mi := &file_federated_proto_msgTypes[6]
+	mi := &file_federated_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -442,7 +493,7 @@ func (x *TrainingComplete) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrainingComplete.ProtoReflect.Descriptor instead.
 func (*TrainingComplete) Descriptor() ([]byte, []int) {
-	return file_federated_proto_rawDescGZIP(), []int{6}
+	return file_federated_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TrainingComplete) GetTotalRounds() int32 {
@@ -459,9 +510,9 @@ func (x *TrainingComplete) GetFinalAccuracy() float64 {
 	return 0
 }
 
-func (x *TrainingComplete) GetDurationMs() int64 {
+func (x *TrainingComplete) GetDuration() int64 {
 	if x != nil {
-		return x.DurationMs
+		return x.Duration
 	}
 	return 0
 }
@@ -478,7 +529,7 @@ type LogEntry struct {
 
 func (x *LogEntry) Reset() {
 	*x = LogEntry{}
-	mi := &file_federated_proto_msgTypes[7]
+	mi := &file_federated_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +541,7 @@ func (x *LogEntry) String() string {
 func (*LogEntry) ProtoMessage() {}
 
 func (x *LogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_federated_proto_msgTypes[7]
+	mi := &file_federated_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +554,7 @@ func (x *LogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return file_federated_proto_rawDescGZIP(), []int{7}
+	return file_federated_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *LogEntry) GetTimestampUnixMs() int64 {
@@ -536,19 +587,18 @@ func (x *LogEntry) GetMessage() string {
 
 type PeerSync struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	PeerId        string                 `protobuf:"bytes,1,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
 	RoundNumber   int32                  `protobuf:"varint,2,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
-	Weights       []byte                 `protobuf:"bytes,3,opt,name=weights,proto3" json:"weights,omitempty"`
+	LocalWeights  []byte                 `protobuf:"bytes,3,opt,name=local_weights,json=localWeights,proto3" json:"local_weights,omitempty"`
 	DatasetSize   int32                  `protobuf:"varint,4,opt,name=dataset_size,json=datasetSize,proto3" json:"dataset_size,omitempty"`
-	RoundsCounter []byte                 `protobuf:"bytes,5,opt,name=rounds_counter,json=roundsCounter,proto3" json:"rounds_counter,omitempty"`
-	Participants  []byte                 `protobuf:"bytes,6,opt,name=participants,proto3" json:"participants,omitempty"`
+	CrdtState     []byte                 `protobuf:"bytes,5,opt,name=crdt_state,json=crdtState,proto3" json:"crdt_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PeerSync) Reset() {
 	*x = PeerSync{}
-	mi := &file_federated_proto_msgTypes[8]
+	mi := &file_federated_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +610,7 @@ func (x *PeerSync) String() string {
 func (*PeerSync) ProtoMessage() {}
 
 func (x *PeerSync) ProtoReflect() protoreflect.Message {
-	mi := &file_federated_proto_msgTypes[8]
+	mi := &file_federated_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,12 +623,12 @@ func (x *PeerSync) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerSync.ProtoReflect.Descriptor instead.
 func (*PeerSync) Descriptor() ([]byte, []int) {
-	return file_federated_proto_rawDescGZIP(), []int{8}
+	return file_federated_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *PeerSync) GetNodeId() string {
+func (x *PeerSync) GetPeerId() string {
 	if x != nil {
-		return x.NodeId
+		return x.PeerId
 	}
 	return ""
 }
@@ -590,9 +640,9 @@ func (x *PeerSync) GetRoundNumber() int32 {
 	return 0
 }
 
-func (x *PeerSync) GetWeights() []byte {
+func (x *PeerSync) GetLocalWeights() []byte {
 	if x != nil {
-		return x.Weights
+		return x.LocalWeights
 	}
 	return nil
 }
@@ -604,16 +654,9 @@ func (x *PeerSync) GetDatasetSize() int32 {
 	return 0
 }
 
-func (x *PeerSync) GetRoundsCounter() []byte {
+func (x *PeerSync) GetCrdtState() []byte {
 	if x != nil {
-		return x.RoundsCounter
-	}
-	return nil
-}
-
-func (x *PeerSync) GetParticipants() []byte {
-	if x != nil {
-		return x.Participants
+		return x.CrdtState
 	}
 	return nil
 }
@@ -647,30 +690,35 @@ const file_federated_proto_rawDesc = "" +
 	"\rEvaluateModel\x12!\n" +
 	"\fround_number\x18\x01 \x01(\x05R\vroundNumber\x12\x18\n" +
 	"\aweights\x18\x02 \x01(\fR\aweights\x12$\n" +
-	"\x0etest_data_path\x18\x03 \x01(\tR\ftestDataPath\"\xa5\x01\n" +
+	"\x0etest_data_path\x18\x03 \x01(\tR\ftestDataPath\"O\n" +
+	"\aF1Score\x12\x1c\n" +
+	"\tprecision\x18\x01 \x01(\x01R\tprecision\x12\x16\n" +
+	"\x06recall\x18\x02 \x01(\x01R\x06recall\x12\x0e\n" +
+	"\x02f1\x18\x03 \x01(\x01R\x02f1\"\xa5\x02\n" +
 	"\x10EvaluationResult\x12!\n" +
 	"\fround_number\x18\x01 \x01(\x05R\vroundNumber\x12\x1a\n" +
-	"\baccuracy\x18\x02 \x01(\x01R\baccuracy\x12\x19\n" +
-	"\bmacro_f1\x18\x03 \x01(\x01R\amacroF1\x12\x19\n" +
-	"\bclass_f1\x18\x04 \x03(\x01R\aclassF1\x12\x1c\n" +
-	"\tconfusion\x18\x05 \x03(\x05R\tconfusion\"}\n" +
+	"\baccuracy\x18\x02 \x01(\x01R\baccuracy\x12R\n" +
+	"\rclass_metrics\x18\x03 \x03(\v2-.federated.EvaluationResult.ClassMetricsEntryR\fclassMetrics\x12)\n" +
+	"\x10confusion_matrix\x18\x04 \x03(\x05R\x0fconfusionMatrix\x1aS\n" +
+	"\x11ClassMetricsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.federated.F1ScoreR\x05value:\x028\x01\"x\n" +
 	"\x10TrainingComplete\x12!\n" +
 	"\ftotal_rounds\x18\x01 \x01(\x05R\vtotalRounds\x12%\n" +
-	"\x0efinal_accuracy\x18\x02 \x01(\x01R\rfinalAccuracy\x12\x1f\n" +
-	"\vduration_ms\x18\x03 \x01(\x03R\n" +
-	"durationMs\"\x89\x01\n" +
+	"\x0efinal_accuracy\x18\x02 \x01(\x01R\rfinalAccuracy\x12\x1a\n" +
+	"\bduration\x18\x03 \x01(\x03R\bduration\"\x89\x01\n" +
 	"\bLogEntry\x12*\n" +
 	"\x11timestamp_unix_ms\x18\x01 \x01(\x03R\x0ftimestampUnixMs\x12!\n" +
 	"\fsource_actor\x18\x02 \x01(\tR\vsourceActor\x12\x14\n" +
 	"\x05level\x18\x03 \x01(\tR\x05level\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"\xce\x01\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\xad\x01\n" +
 	"\bPeerSync\x12\x17\n" +
-	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12!\n" +
-	"\fround_number\x18\x02 \x01(\x05R\vroundNumber\x12\x18\n" +
-	"\aweights\x18\x03 \x01(\fR\aweights\x12!\n" +
-	"\fdataset_size\x18\x04 \x01(\x05R\vdatasetSize\x12%\n" +
-	"\x0erounds_counter\x18\x05 \x01(\fR\rroundsCounter\x12\"\n" +
-	"\fparticipants\x18\x06 \x01(\fR\fparticipantsBAZ?github.com/lukam/actor-framework/federated/protogen;federatedpbb\x06proto3"
+	"\apeer_id\x18\x01 \x01(\tR\x06peerId\x12!\n" +
+	"\fround_number\x18\x02 \x01(\x05R\vroundNumber\x12#\n" +
+	"\rlocal_weights\x18\x03 \x01(\fR\flocalWeights\x12!\n" +
+	"\fdataset_size\x18\x04 \x01(\x05R\vdatasetSize\x12\x1d\n" +
+	"\n" +
+	"crdt_state\x18\x05 \x01(\fR\tcrdtStateBAZ?github.com/lukam/actor-framework/federated/protogen;federatedpbb\x06proto3"
 
 var (
 	file_federated_proto_rawDescOnce sync.Once
@@ -684,24 +732,28 @@ func file_federated_proto_rawDescGZIP() []byte {
 	return file_federated_proto_rawDescData
 }
 
-var file_federated_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_federated_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_federated_proto_goTypes = []any{
 	(*RegisterTrainer)(nil),     // 0: federated.RegisterTrainer
 	(*StartRound)(nil),          // 1: federated.StartRound
 	(*LocalUpdate)(nil),         // 2: federated.LocalUpdate
 	(*AggregationComplete)(nil), // 3: federated.AggregationComplete
 	(*EvaluateModel)(nil),       // 4: federated.EvaluateModel
-	(*EvaluationResult)(nil),    // 5: federated.EvaluationResult
-	(*TrainingComplete)(nil),    // 6: federated.TrainingComplete
-	(*LogEntry)(nil),            // 7: federated.LogEntry
-	(*PeerSync)(nil),            // 8: federated.PeerSync
+	(*F1Score)(nil),             // 5: federated.F1Score
+	(*EvaluationResult)(nil),    // 6: federated.EvaluationResult
+	(*TrainingComplete)(nil),    // 7: federated.TrainingComplete
+	(*LogEntry)(nil),            // 8: federated.LogEntry
+	(*PeerSync)(nil),            // 9: federated.PeerSync
+	nil,                         // 10: federated.EvaluationResult.ClassMetricsEntry
 }
 var file_federated_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	10, // 0: federated.EvaluationResult.class_metrics:type_name -> federated.EvaluationResult.ClassMetricsEntry
+	5,  // 1: federated.EvaluationResult.ClassMetricsEntry.value:type_name -> federated.F1Score
+	2,  // [2:2] is the sub-list for method output_type
+	2,  // [2:2] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_federated_proto_init() }
@@ -715,7 +767,7 @@ func file_federated_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_federated_proto_rawDesc), len(file_federated_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
