@@ -22,6 +22,7 @@ services:
       DATA_DIR: "/data"
 
   peer-2:
+    build: .
     image: fl-actor:latest
     command: ["/app/peer"]
     networks: [flnet]
@@ -42,6 +43,7 @@ services:
       DATA_DIR: "/data"
 
   peer-3:
+    build: .
     image: fl-actor:latest
     command: ["/app/peer"]
     networks: [flnet]

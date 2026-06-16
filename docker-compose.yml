@@ -16,6 +16,7 @@ services:
       DATA_DIR: "/data"
 
   trainer-1:
+    build: .
     image: fl-actor:latest
     command: ["/app/trainer"]
     depends_on: [coordinator]
@@ -36,6 +37,7 @@ services:
       DATA_DIR: "/data"
 
   trainer-2:
+    build: .
     image: fl-actor:latest
     command: ["/app/trainer"]
     depends_on: [coordinator]
@@ -56,6 +58,7 @@ services:
       DATA_DIR: "/data"
 
   trainer-3:
+    build: .
     image: fl-actor:latest
     command: ["/app/trainer"]
     depends_on: [coordinator]
