@@ -20,6 +20,6 @@ func (l *Logger) Receive(ctx *framework.ActorContext, msg framework.Message) {
 		log.Info("training complete",
 			"rounds", m.GetTotalRounds(),
 			"final_accuracy", m.GetFinalAccuracy(),
-			"duration_ms", m.GetDurationMs())
+			"duration_ms", m.GetDuration())
 	}
 }
