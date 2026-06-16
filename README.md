@@ -32,7 +32,7 @@ Postupak po rundi:
 
 **Model:** Višeslojna potpuno povezana neuronska mreža (MLP):
 
-- Ulazni sloj: 41 feature (NSL-KDD)
+- Ulazni sloj: ~122 dimenzije (41 NSL-KDD feature; 3 kategorijska — `protocol_type`, `service`, `flag` — se one-hot enkodiraju, pa je dimenzija veća od 41)
 - Skriveni sloj 1: 64 neurona, ReLU aktivacija
 - Skriveni sloj 2: 32 neurona, ReLU aktivacija
 - Izlazni sloj: 5 klasa (Normal, DoS, Probe, R2L, U2R), softmax
@@ -74,7 +74,7 @@ Postupak po rundi:
 
 **Hijerarhija i pokretanje:**
 - Coordinator pri pokretanju kreira Aggregator i Evaluator kao svoju decu (i postaje njihov supervisor).
-- Traineri se pokreću zasebno na različitim mašinama sa adresom Coordinatora kao konfiguracijom (`--coordinator=<host:port>`).
+- Traineri se pokreću zasebno (različiti procesi/mašine); adresa Coordinatora se prosleđuje kao konfiguracija (env `COORDINATOR_ADDR`, oblik `actor://host:port/coordinator`).
 - Logger se kreira pri pokretanju i supervizuje se od strane Coordinatora
 
 ### 4.2 Poruke
@@ -98,9 +98,9 @@ Postupak po rundi:
 
 **Idempotentnost Trainera:** Trainer čuva `last_completed_round` i `last_sent_weights` u internom stanju. Ako primi `StartRound` sa istim `round_number` koji je već obradio (npr. zbog restarta Aggregatora), Trainer ponovo šalje iste težine bez ponovnog treniranja. Stare vrednosti se brišu iz memorije kada stigne nova runda.
 
-**Pad Aggregatora usred runde:** Coordinator prima `SupervisionAlert`, restartuje Aggregator, te šalje `StartRound` sa istim `round_number` svim Trainerima. Zahvaljujući idempotentnosti, Traineri samo prosleđuju već izračunate težine.
+**Pad Aggregatora usred runde:** framework (supervizija roditelja) restartuje Aggregator, a Coordinator dobija `SupervisionAlert` i ponovo šalje `StartRound` sa istim `round_number` svim Trainerima. Zahvaljujući idempotentnosti, Traineri samo prosleđuju već izračunate težine, pa sveže pokrenuti Aggregator ponovo prikupi ažuriranja.
 
-**Pad Evaluatora između rundi:** Coordinator prima `SupervisionAlert` i restartuje Evaluator bez dodatnih akcija.
+**Pad Evaluatora između rundi:** framework restartuje Evaluator; Coordinator dobija `SupervisionAlert` i samo to zabeleži (bez dodatnih akcija).
 
 ### 4.4 Skica komunikacije
 
@@ -178,8 +178,115 @@ U provider režimu OR-Set se koristi za praćenje skupa registrovanih Trainera, 
 - **Obavezni elementi**: Aktori, asinhrone poruke, Mailbox, Become, Lifecycle, Remote (gRPC)
 - **Dodatni elementi**: Supervizija (restart strategija za pale aktore), Middleware (logovanje poruka, merenje latencije)
 
-Sistem se pokreće sa konfiguracijom koja bira režim rada (`--mode=provider` ili `--mode=p2p`). Demonstracija na više mašina putem gRPC remote aktora.
+Objedinjeni ulaz `cmd/node` bira režim pri pokretanju: `--mode=provider --role=coordinator|trainer` ili `--mode=p2p` (uloga je uvek peer). Alternativno postoje i zasebni binari `cmd/coordinator`, `cmd/trainer`, `cmd/peer`. Demonstracija na više mašina putem gRPC remote aktora.
 
 ## 6. Tehnologije
 
-Go 1.22+, gRPC + Protocol Buffers, Docker,  Gonum, log/slog, encoding/csv.
+Go 1.25+, gRPC + Protocol Buffers, Docker, `log/slog`. Neuronska mreža (MLP + backpropagation) i parsiranje NSL-KDD dataseta implementirani su ručno, bez eksternih ML ili CSV biblioteka.
+
+## 7. Pokretanje
+
+### 7.1 Preduslovi
+
+- **Go 1.25+** (isti major kao u `go.mod`; Docker koristi `golang:1.25`).
+- **Dataset** je uključen u repozitorijum: `federated/data/KDDTrain+.txt` i `KDDTest+.txt` (NSL-KDD). Ne mora se skidati.
+- Za regenerisanje `.pb.go` fajlova iz `.proto` treba `protoc` + `protoc-gen-go`/`protoc-gen-go-grpc`; **nije potrebno za pokretanje** jer su generisani fajlovi u repozitorijumu.
+
+### 7.2 Provera build-a
+
+```
+go build ./...
+go vet ./...
+```
+
+Postoje četiri izvršna programa: `cmd/coordinator` i `cmd/trainer` (provider režim), `cmd/peer` (P2P režim), i `cmd/node` — objedinjeni ulaz koji režim bira flag-om `--mode`/`--role` (poziva istu logiku). Svi se konfigurišu preko env promenljivih.
+
+Objedinjeni ulaz (npr. umesto `go run ./cmd/coordinator`):
+
+```
+go run ./cmd/node --mode=provider --role=coordinator
+go run ./cmd/node --mode=provider --role=trainer
+go run ./cmd/node --mode=p2p
+```
+
+### 7.3 Docker (najlakše)
+
+Provider režim (1 coordinator + 3 trainer kontejnera):
+
+```
+docker compose up --build --abort-on-container-exit
+```
+
+Kad coordinator ispiše `training finished`, `--abort-on-container-exit` gasi i ostale kontejnere.
+
+P2P režim (3 ravnopravna peer čvora, bez koordinatora):
+
+```
+docker compose -f docker-compose.p2p.yml up --build
+```
+
+Peer čvorovi ne izlaze sami; kad svi ispišu `peer training complete`, prekini sa Ctrl+C.
+
+Izbor režima pri pokretanju = koji compose fajl se pokrene. Dataset se u oba slučaja montira kao read-only volume iz `federated/data`, ne ubacuje se u image.
+
+### 7.4 Ručno, bez Dockera (localhost)
+
+Svaki proces se pokreće u zasebnom terminalu, sa svojim portom. Na jednoj mašini `ADVERTISED` je `127.0.0.1:<port>`.
+
+**Provider — 4 terminala.** Terminal 1 (coordinator):
+
+```powershell
+$env:LISTEN=":9000"; $env:ADVERTISED="127.0.0.1:9000"
+$env:EXPECTED_TRAINERS="3"; $env:TOTAL_ROUNDS="5"; $env:SEED="42"
+$env:DATA_DIR="federated/data"
+go run ./cmd/coordinator
+```
+
+Terminali 2–4 (trainer-1/2/3) — razlikuju se samo u portu, `ADVERTISED`, `TRAINER_ID` i `SHARD`:
+
+```powershell
+$env:LISTEN=":9001"; $env:ADVERTISED="127.0.0.1:9001"
+$env:TRAINER_ID="trainer-1"; $env:SHARD="0"
+$env:COORDINATOR_ADDR="actor://127.0.0.1:9000/coordinator"
+$env:NUM_TRAINERS="3"; $env:DISTRIBUTION="iid"
+$env:SEED="42"; $env:EPOCHS="1"; $env:LR="0.01"; $env:DATA_DIR="federated/data"
+go run ./cmd/trainer
+```
+
+Za trainer-2/3: port `:9002`/`:9003`, `ADVERTISED` odgovarajući, `TRAINER_ID`=`trainer-2`/`trainer-3`, `SHARD`=`1`/`2`.
+
+**P2P — 3 terminala.** Peer-1 (peer-2/3 analogno, uz izmenu porta, `NODE_ID`, `SHARD` i `PEERS`):
+
+```powershell
+$env:LISTEN=":9101"; $env:ADVERTISED="127.0.0.1:9101"
+$env:NODE_ID="peer-1"; $env:SHARD="0"
+$env:PEERS="actor://127.0.0.1:9102/peer-2,actor://127.0.0.1:9103/peer-3"
+$env:NUM_PEERS="3"; $env:DISTRIBUTION="iid"
+$env:SEED="42"; $env:EPOCHS="1"; $env:LR="0.01"; $env:TOTAL_ROUNDS="5"; $env:DATA_DIR="federated/data"
+go run ./cmd/peer
+```
+
+### 7.5 Env promenljive
+
+| Promenljiva | Programi | Značenje |
+|---|---|---|
+| `LISTEN` | svi | lokalni bind, npr. `:9000` |
+| `ADVERTISED` | svi | adresa kojom drugi dosežu ovaj proces (`host:port`); na više mašina = LAN IP mašine |
+| `DATA_DIR` | svi | folder sa `KDDTrain+.txt`/`KDDTest+.txt` |
+| `SEED` | svi | seme za deljenje šardova i init modela (isto kod svih) |
+| `DISTRIBUTION` | trainer, peer | `iid` ili `noniid` |
+| `EPOCHS`, `LR` | trainer, peer | lokalne epohe i learning rate |
+| `SHARD` | trainer, peer | indeks šarda, `0..N-1`, jedinstven po čvoru |
+| `EXPECTED_TRAINERS`, `TOTAL_ROUNDS` | coordinator | broj trenera pre starta / broj rundi |
+| `ROUND_TIMEOUT_MS` | coordinator | rok za rundu; po isteku se agregira sa primljenim update-ima (default 30000) |
+| `TRAINER_ID`, `COORDINATOR_ADDR`, `NUM_TRAINERS` | trainer | id trenera / adresa koordinatora / ukupno trenera |
+| `NODE_ID`, `PEERS`, `NUM_PEERS`, `TOTAL_ROUNDS` | peer | id čvora / adrese ostalih peer-ova (CSV) / ukupno čvorova / broj rundi |
+
+### 7.6 Šta treba znati
+
+- **Adresa aktora** je `actor://<ADVERTISED>/<ime>`, gde je ime koordinatora uvek `coordinator`, trenera = `TRAINER_ID`, peera = `NODE_ID`. Zato `COORDINATOR_ADDR` i `PEERS` imaju taj oblik.
+- **Portovi:** na jednoj mašini svaki proces mora imati različit port. Podrazumevane vrednosti su za Docker, pa na localhostu obavezno pregazi `ADVERTISED` i port.
+- **Doslednost šardova:** `SEED`, `NUM_TRAINERS`/`NUM_PEERS` i `DISTRIBUTION` moraju biti isti kod svih, a `SHARD` jedinstven.
+- **Redosled pokretanja nije bitan** — treneri i peer-ovi imaju retry petlju za registraciju/sinhronizaciju.
+- **Kraj:** coordinator sam izađe po završetku; treneri i peer-ovi rade dok se ne prekinu sa Ctrl+C.
+- **Više mašina:** `ADVERTISED` postavi na LAN IP mašine, a `COORDINATOR_ADDR`/`PEERS` koriste te IP adrese; otvori portove u firewall-u.
